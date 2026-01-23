@@ -1,0 +1,297 @@
+<parameter name="content">"""
+Instagram DM Bot - Fixed Version
+See text on Instagram = Respond on Instagram
+
+Works with Safari only!
+"""
+
+import pyautogui
+import time
+import random
+import cv2
+import numpy as np
+import mss
+import pytesseract
+import requests
+import re
+
+
+# Config
+OLLAMA_ENDPOINT = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "mistral"
+
+SYSTEM_PROMPT = """You are a friendly Instagram DM assistant. Reply briefly (under 150 chars), naturally and friendly."""
+
+
+# Safari window bounds
+safari_left = None
+safari_top = None
+safari_right = None
+safari_bottom = None
+
+
+def human_delay():
+    time.sleep(random.uniform(0.1, 0.3))
+
+
+def type_human(text):
+    for char in text:
+        if len(char) == 1 and char.isalnum():
+            pyautogui.press(char)
+        else:
+            pyautogui.write(char)
+        time.sleep(random.uniform(0.02, 0.05))
+
+
+def wait_for_safari_click():
+    """Wait for user to click inside Safari window."""
+    global safari_left, safari_top, safari_right, safari_bottom
+    
+    print("\n" + "=" * 50)
+    print("INSTAGRAM DM BOT - SAFARI MODE")
+    print("=" * 50)
+    print("\n1. Make sure Safari is open with Instagram DM")
+    print("2. CLICK ANYWHERE in Safari window NOW")
+    print("\nBot will start automatically after your click...")
+    
+    last_pos = pyautogui.position()
+    while True:
+        current_pos = pyautogui.position()
+        if current_pos != last_pos:
+            cx, cy = current_pos[0], current_pos[1]
+            
+            safari_left = max(0, cx - 400)
+            safari_top = max(0, cy - 250)
+            safari_right = min(1920, cx + 400)
+            safari_bottom = min(1080, cy + 250)
+            
+            print(f"\n✓ Safari area set!")
+            print(f"✓ Bot started! Watching for messages...\n")
+            break
+        last_pos = current_pos
+        time.sleep(0.1)
+
+
+def capture_safari_only():
+    """Capture ONLY the Safari region."""
+    if safari_left is None:
+        return None
+    
+    with mss.mss() as sct:
+        monitor = sct.monitors[1]
+        screenshot = np.array(sct.grab(monitor))
+        return screenshot[safari_top:safari_bottom, safari_left:safari_right]
+
+
+def is_time_or_timestamp(text):
+    """Check if text is just a time/timestamp."""
+    text = text.strip()
+    
+    # Skip time patterns (5:30, 12:00, etc.)
+    if re.match(r'^\d{1,2}:\d{2}$', text):
+        return True
+    
+    # Skip durations (1d, 2h, 30m, etc.)
+    if re.match(r'^\d+[dhm]$', text.lower()):
+        return True
+    
+    # Skip dates (Jan 1, etc.)
+    if re.match(r'^[A-Za-z]+\s+\d+$', text):
+        return True
+    
+    # Skip view counts
+    if re.match(r'^[\d,.]+$', text) and len(text) < 10:
+        return True
+    
+    # Skip status text
+    if text.lower() in ['seen', 'delivered', 'sent']:
+        return True
+    
+    return False
+
+
+def is_reel_share(text):
+    """Check if text indicates a reel was shared."""
+    text_lower = text.lower().strip()
+    reel_indicators = ['reel', 'shared a reel', 'sent a reel', 'instagram reel']
+    return any(i in text_lower for i in reel_indicators)
+
+
+def is_navigation_text(text):
+    """Check if text is from navigation."""
+    text_lower = text.lower().strip()
+    nav_indicators = ['message', 'messages', 'inbox', 'requests', 'suggested', 'followers']
+    return text_lower in nav_indicators
+
+
+def is_valid_message(text):
+    """Check if text is a valid message worth responding to."""
+    if not text or len(text.strip()) < 3:
+        return False
+    
+    text = text.strip()
+    
+    # Skip timestamps
+    if is_time_or_timestamp(text):
+        return False
+    
+    # Skip reel shares
+    if is_reel_share(text):
+        return False
+    
+    # Skip navigation text
+    if is_navigation_text(text):
+        return False
+    
+    # Skip short text
+    if len(text) < 4:
+        return False
+    
+    # Skip all symbols/emojis
+    if sum(c.isalnum() for c in text) == 0:
+        return False
+    
+    # Skip mostly symbols
+    if sum(c.isalnum() for c in text) / len(text) < 0.4:
+        return False
+    
+    # Skip pure numbers
+    if text.replace(' ', '').replace(',', '').isdigit():
+        return False
+    
+    return True
+
+
+def extract_last_message(image):
+    """Extract the last/most recent message from chat area."""
+    if image is None or image.size == 0:
+        return ""
+    
+    h, w = image.shape[:2]
+    
+    # Main chat area (skip header)
+    chat_region = image[int(h * 0.08):int(h * 0.65), :]
+    
+    if chat_region.size == 0:
+        return ""
+    
+    gray = cv2.cvtColor(chat_region, cv2.COLOR_BGR2GRAY)
+    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    
+    texts = []
+    for img in [gray, blurred]:
+        try:
+            text = pytesseract.image_to_string(img).strip()
+            if text:
+                texts.append(text)
+        except:
+            continue
+    
+    if not texts:
+        return ""
+    
+    return max(texts, key=len)
+
+
+def read_message():
+    """Read message from Safari DM with filtering."""
+    image = capture_safari_only()
+    if image is None:
+        return ""
+    
+    raw_text = extract_last_message(image)
+    if not raw_text:
+        return ""
+    
+    # Get last valid message
+    lines = raw_text.split('\n')
+    for line in reversed(lines):
+        line = line.strip()
+        if is_valid_message(line):
+            return line
+    
+    return ""
+
+
+def find_input_and_send(message):
+    """Send message - ONLY in Safari."""
+    if not message:
+        return
+    
+    print(f"  Sending: '{message[:40]}...'")
+    
+    # Click at bottom center of Safari
+    input_x = (safari_left + safari_right) // 2
+    input_y = safari_bottom - 50
+    
+    pyautogui.click(input_x, input_y)
+    human_delay()
+    
+    # Clear and type
+    pyautogui.hotkey('cmd', 'a')
+    human_delay()
+    pyautogui.press('backspace')
+    human_delay()
+    
+    type_human(message)
+    human_delay()
+    
+    pyautogui.press('enter')
+    print("  ✓ Sent!")
+
+
+def get_ai_response(text):
+    """Get AI response from Ollama."""
+    if not text or len(text.strip()) < 3:
+        return None
+    
+    prompt = f"{SYSTEM_PROMPT}\n\nMessage: {text.strip()}\n\nReply:"
+    
+    try:
+        resp = requests.post(
+            OLLAMA_ENDPOINT,
+            json={"model": OLLAMA_MODEL, "prompt": prompt, "stream": False},
+            timeout=30
+        )
+        resp.raise_for_status()
+        reply = resp.json().get("response", "").strip()
+        reply = re.sub(r'<[^>]+>', '', reply).strip()
+        return reply if reply and len(reply) > 1 else None
+    except Exception as e:
+        print(f"  AI error: {e}")
+        return None
+
+
+def run_bot():
+    """Main bot loop - Safari only."""
+    wait_for_safari_click()
+    
+    last_text = None
+    reply_count = 0
+    
+    try:
+        while True:
+            msg = read_message()
+            
+            if msg and msg != last_text and len(msg) > 3:
+                print(f"[{reply_count + 1}] '{msg[:50]}...'")
+                
+                reply = get_ai_response(msg)
+                
+                if reply:
+                    print(f"  AI: '{reply[:40]}...'")
+                    find_input_and_send(reply)
+                    reply_count += 1
+                
+                last_text = msg
+            
+            time.sleep(3)
+            
+    except KeyboardInterrupt:
+        print(f"\n✓ Stopped! Sent {reply_count} replies.")
+
+
+if __name__ == "__main__":
+    run_bot()
+
+</parameter>

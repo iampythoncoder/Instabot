@@ -1,0 +1,55 @@
+==================================================
+LEFT SIDE RAW OCR:
+==================================================
+AM
+aM
+sey
+day
+sey
+ny _ a
+
+
+==================================================
+VERY BOTTOM RAW OCR:
+==================================================
+2 PS | © LJ k
+ttaytunedtor | romeo ee a
+= es ‘cout oe ae
+Ostet aernene (5) tm
+SS
+
+
+==================================================
+RIGHT SIDE RAW OCR:
+==================================================
+WE ARE (a
+FUTURE SCHOLARS ggyi(= "
+ASSOCIATION Ux
+EMPOWERING FUTURE SCHOLARS. =]
+& | © g
+syrnaiia | romowsnin | HELA | owe
+Oe Mine OE
+De
+
+WE ARF Se
+
+
+==================================================
+CLEANED THEIR MESSAGES:
+==================================================
+  1. sey
+  2. day
+  3. ny _ a
+  4. Ostet aernene (5) tm
+
+==================================================
+CLEANED MY MESSAGES:
+==================================================
+  1. WE ARE (a
+  2. FUTURE SCHOLARS ggyi(= "
+  3. ASSOCIATION Ux
+  4. EMPOWERING FUTURE SCHOLARS. =]
+  5. & | © g
+  6. syrnaiia | romowsnin | HELA | owe
+  7. Oe Mine OE
+  8. WE ARF Se

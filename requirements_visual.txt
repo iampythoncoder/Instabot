@@ -1,0 +1,21 @@
+# Instagram AI Bot Dependencies
+# Install with: pip3 install -r requirements_visual.txt
+#
+# ALSO REQUIRED: Install Tesseract OCR
+#   brew install tesseract
+
+# Core
+opencv-python>=4.8.0          # Computer vision
+numpy>=1.24.0                 # Array operations
+Pillow>=10.0.0                # Image processing
+
+# Screen capture & control
+mss>=9.0.0                    # Fast screenshots
+pyautogui>=0.9.54             # Mouse/keyboard control
+
+# OCR (text recognition)
+pytesseract>=0.3.10           # Python wrapper for Tesseract
+
+# macOS-specific (required for pyautogui)
+pyobjc-core>=10.0
+pyobjc-framework-Quartz>=10.0
