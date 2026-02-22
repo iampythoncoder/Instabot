@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+ea#!/usr/bin/env python3
 """
 Instagram DM Conversation Bot - Click to Define Region
 First click = top-left of Safari DM, Second click = bottom-right
